@@ -47,13 +47,14 @@ head(data)
 saveRDS(data,"massbird.data.RDS")
 dat<- readRDS("massbird.data.RDS")
 
-data%>%
+
+dat%>%
   group_by(year,species)%>%
   summarise(count=sum(individualCount,na.rm = T))%>%
   ggplot(aes(x=year,y=count,col=species))+geom_point()
 
-options(noaakey="OOZIuxBSmRgSCBNQPuYyWVUZGaWoDIBo")
 
+options(noaakey="OOZIuxBSmRgSCBNQPuYyWVUZGaWoDIBo")
 
 sts <- c(
   "GHCND:USW00013894", #Mobible, AL 2k away about 10 days away @200 km/day
@@ -66,10 +67,333 @@ bos <- ncdc_stations(stationid = "GHCND:USW00014739")
 print(bos)
 
 sta.d <- bind_rows( #bind the rows
-  lapply(sts,function(x) ncdc_stations(stationid = x)$data )
+  lapply(sts,function(x) ncdc_stations(stationid = x)$data ) #use lapply to run through stations
+)%>%
+  mutate(usmap_transform(.,input_names = c("longitude","latitude"),output_names = c("longitude.1", "latitude.1")))%>% #join transformation of lat/long for projection with usmap
+  mutate(name=str_sub(name, -5,-4))%>%#simplify the name column, grab just the state
+  mutate(migr.day=c(10,5,0))%>% #so we can look at wind speed 0, 5 or 10 days before arrive in boston
+  separate(id,into = c("station.type","id"))%>%#need to cut station type out from station id number
+  print()
+
+plot_usmap(include = c(.northeast_region,.south_region,.east_north_central))+geom_point(data=sta.d,aes(x=longitude.1,y=latitude.1,col=name),size=5)+geom_label(data=sta.d,aes(x=longitude.1,y=latitude.1,col=name,label=name),size=5,nudge_x = 1e6*0.25)+theme(legend.position = "none")
+
+weather.d <- meteo_pull_monitors(sta.d$id,date_min = "2000-01-01")
+
+head(weather.d)
+
+
+#Megaceryle alcyon - belted kingfisher
+mea<- dat%>%
+  filter(species=="Megaceryle alcyon")%>%
+  group_by(year)%>%
+  mutate(date=as.Date(paste0(year,"-",month,"-",day)),
+         j.day=julian(date,origin=as.Date(paste0(unique(year),"-01-01")))
   )%>%
-    left_join(usmap_transform(.[,c("longitude","latitude")]))%>%
-    mutate(name=str_sub(name, -5,-4))%>%#simplify the name column, grab just the state
-    mutate(migr.day=c(10,5,0))%>% #so we can look at wind speed 0, 5 or 10 days before arrive in boston
-    separate(id,into = c("station.type","id"))%>%#need to cut station type out from station id number
-    print()
+  group_by(species,year,j.day,date)%>%
+  summarise(day.tot=sum(individualCount,na.rm=T))%>%
+  group_by(species,year)%>%
+  mutate(prop=cumsum(day.tot/sum(day.tot,na.rm = T)))%>%
+  filter(year>1999)
+
+
+mea%>%
+  ggplot(aes(j.day,prop))+geom_point()+facet_wrap(year~.)
+
+#Sayornis phoebe - Eastern Phoebe 
+ep<- dat%>%
+  filter(species=="Sayornis phoebe")%>%
+  group_by(year)%>%
+  mutate(date=as.Date(paste0(year,"-",month,"-",day)),
+         j.day=julian(date,origin=as.Date(paste0(unique(year),"-01-01")))
+  )%>%
+  group_by(species,year,j.day,date)%>%
+  summarise(day.tot=sum(individualCount,na.rm=T))%>%
+  group_by(species,year)%>%
+  mutate(prop=cumsum(day.tot/sum(day.tot,na.rm = T)))%>%
+  filter(year>1999)
+
+
+ep%>%
+  ggplot(aes(j.day,prop))+geom_point()+facet_wrap(year~.)
+
+#Vireo philadelphicus - Philadelphia Virelo 
+pv<- dat%>%
+  filter(species=="Vireo philadelphicus")%>%
+  group_by(year)%>%
+  mutate(date=as.Date(paste0(year,"-",month,"-",day)),
+         j.day=julian(date,origin=as.Date(paste0(unique(year),"-01-01")))
+  )%>%
+  group_by(species,year,j.day,date)%>%
+  summarise(day.tot=sum(individualCount,na.rm=T))%>%
+  group_by(species,year)%>%
+  mutate(prop=cumsum(day.tot/sum(day.tot,na.rm = T)))%>%
+  filter(year>1999)
+
+
+pv%>%
+  ggplot(aes(j.day,prop))+geom_point()+facet_wrap(year~.)
+
+#Catharus ustulatus - Swainson's Thrush 
+st <-  dat%>%
+  filter(species=="Catharus ustulatus")%>%
+  group_by(year)%>%
+  mutate(date=as.Date(paste0(year,"-",month,"-",day)),
+         j.day=julian(date,origin=as.Date(paste0(unique(year),"-01-01")))
+  )%>%
+  group_by(species,year,j.day,date)%>%
+  summarise(day.tot=sum(individualCount,na.rm=T))%>%
+  group_by(species,year)%>%
+  mutate(prop=cumsum(day.tot/sum(day.tot,na.rm = T)))%>%
+  filter(year>1999)
+
+
+st%>%
+  ggplot(aes(j.day,prop))+geom_point()+facet_wrap(year~.)
+
+
+#Setophaga caerulescens - Black-throated Blue Warbler 
+btw <-  dat%>%
+  filter(species=="Setophaga caerulescens")%>%
+  group_by(year)%>%
+  mutate(date=as.Date(paste0(year,"-",month,"-",day)),
+         j.day=julian(date,origin=as.Date(paste0(unique(year),"-01-01")))
+  )%>%
+  group_by(species,year,j.day,date)%>%
+  summarise(day.tot=sum(individualCount,na.rm=T))%>%
+  group_by(species,year)%>%
+  mutate(prop=cumsum(day.tot/sum(day.tot,na.rm = T)))%>%
+  filter(year>1999)
+
+
+btw%>%
+  ggplot(aes(j.day,prop))+geom_point()+facet_wrap(year~.)
+
+#Setophaga dominica - Yellow-throated  Warbler 
+yw <-  dat%>%
+  filter(species=="Setophaga dominica")%>%
+  group_by(year)%>%
+  mutate(date=as.Date(paste0(year,"-",month,"-",day)),
+         j.day=julian(date,origin=as.Date(paste0(unique(year),"-01-01")))
+  )%>%
+  group_by(species,year,j.day,date)%>%
+  summarise(day.tot=sum(individualCount,na.rm=T))%>%
+  group_by(species,year)%>%
+  mutate(prop=cumsum(day.tot/sum(day.tot,na.rm = T)))%>%
+  filter(year>1999)
+
+
+yw%>%
+  ggplot(aes(j.day,prop))+geom_point()+facet_wrap(year~.)
+
+#logistic predictions for each species 
+
+#Megaceryle alcyon - belted kingfisher
+mea.pred <- mea%>%
+  group_by(year)%>%
+  summarize(
+    pred=predict(nls(prop~SSlogis(j.day,Asym, xmid, scal)),newdata=data.frame(j.day=min(j.day):max(j.day))),#predict the logistic curve for each species
+    j.day=min(j.day):max(j.day),
+  )%>%
+  left_join(mea%>%dplyr::select(j.day,date)) ## add date back to tibble
+
+mea%>%
+  ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=mea.pred,aes(x=j.day,y=pred),col="steelblue",size=2)+facet_wrap(year~.)
+
+
+#Sayornis phoebe - Eastern Phoebe 
+ep.pred <- ep%>%
+  group_by(year)%>%
+  summarize(
+    pred=predict(nls(prop~SSlogis(j.day,Asym, xmid, scal)),newdata=data.frame(j.day=min(j.day):max(j.day))),#predict the logistic curve for each species
+    j.day=min(j.day):max(j.day),
+  )%>%
+  left_join(ep%>%dplyr::select(j.day,date)) ## add date back to tibble
+
+ep%>%
+  ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=ep.pred,aes(x=j.day,y=pred),col="navajowhite4",size=2)+facet_wrap(year~.)
+
+#Vireo philadelphicus - Philadelphia Virelo 
+pv.forlog <- pv %>%  filter(year==2001 | year == 2002 | year == 2005|year ==2007|year==2011|year==2017|year==2018|year==2019)
+pv.pred <- pv.forlog%>%
+  group_by(year)%>%
+  summarize(
+    pred=predict(nls(prop~SSlogis(j.day,Asym, xmid, scal)),newdata=data.frame(j.day=min(j.day):max(j.day))),#predict the logistic curve for each species
+    j.day=min(j.day):max(j.day),
+  )%>%
+  left_join(pv.forlog%>%dplyr::select(j.day,date)) ## add date back to tibble
+
+
+pv.forlog%>%
+  ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=pv.pred,aes(x=j.day,y=pred),col="yellow4",size=2)+facet_wrap(year~.)
+
+#Catharus ustulatus - Swainson's Thrush 
+st.pred <- st%>%
+  group_by(year)%>%
+  summarize(
+    pred=predict(nls(prop~SSlogis(j.day,Asym, xmid, scal)),newdata=data.frame(j.day=min(j.day):max(j.day))),#predict the logistic curve for each species
+    j.day=min(j.day):max(j.day),
+  )%>%
+  left_join(st%>%dplyr::select(j.day,date)) ## add date back to tibble
+
+
+st%>%
+  ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=st.pred,aes(x=j.day,y=pred),col="khaki4",size=2)+facet_wrap(year~.)
+
+#Setophaga caerulescens - Black-throated Blue Warbler 
+btw.pred <- btw%>%
+  group_by(year)%>%
+  summarize(
+    pred=predict(nls(prop~SSlogis(j.day,Asym, xmid, scal)),newdata=data.frame(j.day=min(j.day):max(j.day))),#predict the logistic curve for each species
+    j.day=min(j.day):max(j.day),
+  )%>%
+  left_join(btw%>%dplyr::select(j.day,date)) ## add date back to tibble
+
+
+btw%>%
+  ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=btw.pred,aes(x=j.day,y=pred),col="royalblue3",size=2)+facet_wrap(year~.)
+
+#Setophaga dominica - Yellow-throated  Warbler
+yw.forlog <- yw%>%filter(year==2004 |year==2009 |year== 2011|year==2013| year==2014| year==2016| year==2017| year==2019)
+yw.pred <- yw.forlog%>%
+  group_by(year)%>%
+  summarize(
+    pred=predict(nls(prop~SSlogis(j.day,Asym, xmid, scal)),newdata=data.frame(j.day=min(j.day):max(j.day))),#predict the logistic curve for each species
+    j.day=min(j.day):max(j.day),
+  )%>%
+  left_join(yw.forlog%>%dplyr::select(j.day,date)) ## add date back to tibble
+
+
+yw.forlog%>%
+  ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=yw.pred,aes(x=j.day,y=pred),col="gold1",size=2)+facet_wrap(year~.)
+
+#julian day closest to .25 population arriving 
+
+#Megaceryle alcyon - belted kingfisher
+mea.arrive.date <-mea.pred%>%
+  group_by(year)%>%
+  filter(j.day==j.day[which.min(abs(pred-0.25))])
+
+mea.arrive.date%>%
+  ggplot(aes(year,j.day))+geom_point()
+
+#Sayornis phoebe - Eastern Phoebe
+ep.arrive.date <-ep.pred%>%
+  group_by(year)%>%
+  filter(j.day==j.day[which.min(abs(pred-0.25))])
+
+ep.arrive.date%>%
+  ggplot(aes(year,j.day))+geom_point()
+
+#Vireo philadelphicus - Philadelphia Virelo 
+pv.arrive.date <-pv.pred%>%
+  group_by(year)%>%
+  filter(j.day==j.day[which.min(abs(pred-0.25))])
+
+pv.arrive.date%>%
+  ggplot(aes(year,j.day))+geom_point()
+
+#Catharus ustulatus - Swainson's Thrush 
+st.arrive.date <-st.pred%>%
+  group_by(year)%>%
+  filter(j.day==j.day[which.min(abs(pred-0.25))])
+
+st.arrive.date%>%
+  ggplot(aes(year,j.day))+geom_point()
+
+#Setophaga caerulescens - Black-throated Blue Warbler 
+btw.arrive.date <-btw.pred%>%
+  group_by(year)%>%
+  filter(j.day==j.day[which.min(abs(pred-0.25))])
+
+btw.arrive.date%>%
+  ggplot(aes(year,j.day))+geom_point()
+
+#Setophaga dominica - Yellow-throated  Warbler
+yw.arrive.date <-yw.pred%>%
+  group_by(year)%>%
+  filter(j.day==j.day[which.min(abs(pred-0.25))])
+
+yw.arrive.date%>%
+  ggplot(aes(year,j.day))+geom_point()
+
+weather.d <- weather.d%>%
+  mutate(year=as.integer(str_sub(date,1,4)), #add year
+         date=as.Date(date))%>%
+  group_by(year)%>% #group by year so we can compute julian day
+  mutate(j.day=julian(date,origin=as.Date(paste0(unique(year),"-01-01"))), #add julian day
+         date2=date,
+         wdir.rad=(180-abs(wdf2-180))*pi/180, #radians so we can use a trig function to compute wind vector, scale degrees first to 180 scale to 2x pi and subtract from 180 (wind comes out of a direction)
+         wvec=cos(wdir.rad)*-1*awnd # we want a negative value for positive value for 2x pi
+  )%>% #store day in new column
+  dplyr::select(id,year,date2,j.day,tmin,tmax,wvec)%>% #select the rows we need
+  left_join(sta.d%>%select(id,name,migr.day))%>% #add the station id info (ie. name)
+  mutate(j.day=j.day+migr.day)#make j.day ahead of BOS according to the migration days away so we can join weather along path
+
+#first go at combining weather data + arrival date data 
+#Megaceryle alcyon - belted kingfisher
+mea.arr.weath <- mea.arrive.date%>%
+  left_join(weather.d)%>%
+  left_join(mea%>%dplyr::select(year,date,j.day))
+
+#eastern phoebe 
+ep.arr.weath <- ep.arrive.date%>%
+  left_join(weather.d)%>%
+  left_join(ep%>%dplyr::select(year,date,j.day))
+
+#Vireo philadelphicus - Philadelphia Virelo 
+pv.arr.weath <- pv.arrive.date%>%
+  left_join(weather.d)%>%
+  left_join(pv%>%dplyr::select(year,date,j.day))
+
+#Catharus ustulatus - Swainson's Thrush 
+st.arr.weath <- st.arrive.date%>%
+  left_join(weather.d)%>%
+  left_join(st%>%dplyr::select(year,date,j.day))
+
+#Setophaga caerulescens - Black-throated Blue Warbler 
+btw.arr.weath <- btw.arrive.date%>%
+  left_join(weather.d)%>%
+  left_join(btw%>%dplyr::select(year,date,j.day))
+
+#Setophaga dominica - Yellow-throated  Warbler
+yw.arr.weath <- yw.arrive.date%>%
+  left_join(weather.d)%>%
+  left_join(yw%>%dplyr::select(year,date,j.day))
+
+weather.wk <-weather.d %>% 
+  group_by(year,name) %>% 
+  mutate(wk.tmin = frollmean(tmin, n=14,align="right"),
+         wk.tmax = frollmean(tmax, n=14,align="right"),
+         wk.wvec = frollmean(wvec, n=14,align="right")
+  )%>%
+  dplyr::select(j.day,date2,name,wk.tmin,wk.tmax,wk.wvec)
+
+#following weather table modification (computing mean weather at each location) added to bird data
+
+#Megaceryle alcyon - belted kingfisher
+mea.arr.weath2 <- mea.arrive.date%>%
+  left_join(weather.wk)
+
+#eastern phoebe 
+ep.arr.weath2 <- ep.arrive.date%>%
+  left_join(weather.wk)
+
+#Vireo philadelphicus - Philadelphia Virelo 
+pv.arr.weath2 <- pv.arrive.date%>%
+  left_join(weather.wk)
+
+#Catharus ustulatus - Swainson's Thrush 
+st.arr.weath2 <- st.arrive.date%>%
+  left_join(weather.wk)
+
+#Setophaga caerulescens - Black-throated Blue Warbler 
+btw.arr.weath2 <- btw.arrive.date%>%
+  left_join(weather.wk)
+
+#Setophaga dominica - Yellow-throated  Warbler
+yw.arr.weath2 <- yw.arrive.date%>%
+  left_join(weather.wk)
+
+
+
+
