@@ -81,6 +81,67 @@ weather.d <- meteo_pull_monitors(sta.d$id,date_min = "2000-01-01")
 
 head(weather.d)
 
+#all data 
+all.dat<- dat%>%
+  group_by(year)%>%
+  mutate(date=as.Date(paste0(year,"-",month,"-",day)),
+         j.day=julian(date,origin=as.Date(paste0(unique(year),"-01-01")))
+  )%>%
+  group_by(species,year,j.day,date)%>%
+  summarise(day.tot=sum(individualCount,na.rm=T))%>%
+  group_by(species,year)%>%
+  mutate(prop=cumsum(day.tot/sum(day.tot,na.rm = T)))%>%
+  filter(year>1999)
+all.dat%>%
+  ggplot(aes(j.day,prop,color=species))+geom_point()+facet_wrap(year~.)
+
+#all data log prediction 
+all.dat.pred <- all.dat%>%
+  group_by(year)%>%
+  summarize(
+    pred=predict(nls(prop~SSlogis(j.day,Asym, xmid, scal)),newdata=data.frame(j.day=min(j.day):max(j.day))),#predict the logistic curve for each species
+    j.day=min(j.day):max(j.day),
+  )%>%
+  left_join(all.dat%>%dplyr::select(j.day,date)) ## add date back to tibble
+all.dat%>%
+  ggplot(aes(j.day,prop,color = species))+geom_point(aes=0.3)+geom_line(data=all.dat.pred,aes(x=j.day,y=pred),col="black",size=2)+facet_wrap(year~.)
+
+
+#all data arrival date 
+alldat.arrive.date <-all.dat.pred%>%
+  group_by(year)%>%
+  filter(j.day==j.day[which.min(abs(pred-0.25))])
+
+alldat.arrive.date%>%
+  ggplot(aes(year,j.day,color=species))+geom_point()
+
+#all data with unaveraged weather 
+alldat.arr.weath <- alldat.arrive.date%>%
+  left_join(weather.d)%>%
+  left_join(all.dat%>%dplyr::select(year,date,j.day))
+
+#all data with 2 week weather average 
+alldat.arr.weath2 <- alldat.arrive.date%>%
+  left_join(weather.wk)
+
+
+#all data linear models 
+#linear model 1 -- 
+alldat.lmer <- lmer(j.day~tmin*tmax*wvec+(1|name)+(1|species),alldat.arr.weath,na.action = "na.fail")
+Anova(alldat.lmer)
+
+#0Mean two week weather preceding arrival
+alldat.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name)+(1|species),alldat.arr.weath2,na.action = "na.fail")
+Anova(alldat.lmer2)
+
+#secondary model 
+alldat.arr.aic <- dredge(alldat.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
+pv.kb <- kable(pv.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model")
+kable_styling(pv.kb)
+
+#all data best model 
+best.alldat.lmer <-  lmer(j.day~wk.tmin+wk.tmax+wk.wvec+(1|name)+(1|species),alldat.arr.weath2,na.action = "na.fail")
+Anova(best.alldat.lmer)
 
 #Megaceryle alcyon - belted kingfisher
 mea<- dat%>%
@@ -94,7 +155,6 @@ mea<- dat%>%
   group_by(species,year)%>%
   mutate(prop=cumsum(day.tot/sum(day.tot,na.rm = T)))%>%
   filter(year>1999)
-
 
 mea%>%
   ggplot(aes(j.day,prop))+geom_point()+facet_wrap(year~.)
@@ -374,26 +434,116 @@ weather.wk <-weather.d %>%
 mea.arr.weath2 <- mea.arrive.date%>%
   left_join(weather.wk)
 
+#linear model 1 -- 
+mea.lmer <- lmer(j.day~tmin*tmax*wvec+(1|name),mea.arr.weath,na.action = "na.fail")
+Anova(mea.lmer)
+
+#0Mean two week weather preceding arrival
+mea.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name),mea.arr.weath2,na.action = "na.fail")
+Anova(mea.lmer2)
+
+#secondary model 
+mea.arr.aic <- dredge(mea.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
+mea.kb <- kable(mea.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model")
+kable_styling(mea.kb)
+
+
 #eastern phoebe 
 ep.arr.weath2 <- ep.arrive.date%>%
   left_join(weather.wk)
+
+#linear model 1 -- 
+ep.lmer <- lmer(j.day~tmin*tmax*wvec+(1|name),ep.arr.weath,na.action = "na.fail")
+Anova(ep.lmer)
+
+#0Mean two week weather preceding arrival
+ep.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name),ep.arr.weath2,na.action = "na.fail")
+Anova(ep.lmer2)
+
+#secondary model 
+ep.arr.aic <- dredge(ep.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
+ep.kb <- kable(ep.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model")
+kable_styling(ep.kb)
 
 #Vireo philadelphicus - Philadelphia Virelo 
 pv.arr.weath2 <- pv.arrive.date%>%
   left_join(weather.wk)
 
+#linear model 1 -- 
+pv.lmer <- lmer(j.day~tmin*tmax*wvec+(1|name),pv.arr.weath,na.action = "na.fail")
+Anova(pv.lmer)
+
+#0Mean two week weather preceding arrival
+pv.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name),pv.arr.weath2,na.action = "na.fail")
+Anova(pv.lmer2)
+
+#secondary model 
+pv.arr.aic <- dredge(pv.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
+pv.kb <- kable(pv.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model")
+kable_styling(pv.kb)
+
 #Catharus ustulatus - Swainson's Thrush 
 st.arr.weath2 <- st.arrive.date%>%
   left_join(weather.wk)
+
+#linear model 1 -- 
+st.lmer <- lmer(j.day~tmin*tmax*wvec+(1|name),st.arr.weath,na.action = "na.fail")
+Anova(st.lmer)
+
+#0Mean two week weather preceding arrival
+st.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name),st.arr.weath2,na.action = "na.fail")
+Anova(st.lmer2)
+
+#secondary model 
+st.arr.aic <- dredge(st.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
+st.kb <- kable(st.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model")
+kable_styling(st.kb)
 
 #Setophaga caerulescens - Black-throated Blue Warbler 
 btw.arr.weath2 <- btw.arrive.date%>%
   left_join(weather.wk)
 
+#linear model 1 -- 
+btw.lmer <- lmer(j.day~tmin*tmax*wvec+(1|name),btw.arr.weath,na.action = "na.fail")
+Anova(btw.lmer)
+
+#0Mean two week weather preceding arrival
+btw.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name),btw.arr.weath2,na.action = "na.fail")
+Anova(btw.lmer2)
+
+#secondary model 
+btw.arr.aic <- dredge(btw.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
+btw.kb <- kable(btw.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model")
+kable_styling(btw.kb)
+
 #Setophaga dominica - Yellow-throated  Warbler
 yw.arr.weath2 <- yw.arrive.date%>%
   left_join(weather.wk)
 
+#linear model 1 -- 
+yw.lmer <- lmer(j.day~tmin*tmax*wvec+(1|name),yw.arr.weath,na.action = "na.fail")
+Anova(yw.lmer)
+
+#0Mean two week weather preceding arrival
+yw.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name),yw.arr.weath2,na.action = "na.fail")
+Anova(yw.lmer2)
+
+#secondary model 
+yw.arr.aic <- dredge(yw.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
+yw.kb <- kable(yw.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model")
+kable_styling(yw.kb)
 
 
-
+#best linear models
+best.mea.lmer <-  lmer(j.day~wk.tmin+wk.tmax+wk.wvec+(1|name),mea.arr.weath2,na.action = "na.fail")
+Anova(best.mea.lmer)
+best.ep.lmer <-  lmer(j.day~wk.tmin+wk.tmax+wk.wvec+(1|name),ep.arr.weath2,na.action = "na.fail")
+Anova(best.ep.lmer)
+best.pv.lmer <-  lmer(j.day~wk.tmin+wk.tmax+wk.wvec+(1|name),pv.arr.weath2,na.action = "na.fail")
+Anova(best.pv.lmer)
+best.st.lmer <-  lmer(j.day~wk.tmin+wk.tmax+wk.wvec+(1|name),st.arr.weath2,na.action = "na.fail")
+Anova(best.st.lmer)
+best.btw.lmer <-  lmer(j.day~wk.tmin+wk.tmax+wk.wvec+(1|name),btw.arr.weath2,na.action = "na.fail")
+Anova(best.btw.lmer)
+best.yw.lmer <-  lmer(j.day~wk.tmin+wk.tmax+wk.wvec+(1|name),yw.arr.weath2,na.action = "na.fail")
+Anova(best.yw.lmer)
