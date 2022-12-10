@@ -17,16 +17,419 @@ In 2002, the Cornell Laboratory of Ornithology and the National Audubon Society 
 We downloaded eBird’s species occurrence data from the Global Biodiversity Information Facility with an R package, rgif, that allows us to access the application programming interface. We also used an R package, rnoa, to interact with NOAA’s National Climate Data Center’s application programming interface in order to compile meteorological data. We used this eBird and meteorological data to study the effects of local weather conditions on the arrival times of TGMs in Massachusetts. We were investigating if local weather conditions that are related to climate change are impacting TGM arrival times, which has implications for fitness changes and species conservation.
 
 ## Methods
-The first step in completing our project was to select five different trans-Gulf migrant (TGM) bird species. These species should be from different families. We selected: Belted Kingfisher (*Megaceryle alcyon*), Eastern Phoebe (*Sayornis phoebe*), Philadelphia Vireo (*Vireo phildelphicus*), Swainson's Thrush (*Catharus ustulatus*), and Black-throated Blue Warbler (*Setophaga caerulescens*). Data would be sourced from human observations of these species in Massachusetts in the eBird database. Then, using a for loop that passes our species through occ_data(), we retrieved the data from the database. This information would allow us to find the Julian day for each species and see the effect of temperature and wind along the migration route to Massachusetts. Next three sample locations along the migration route are chosen: Mobile, AL, Charlotte, NC, and Boston, MA. Mobile, AL is on the Gulf, Charlotte, NC is roughly in the middle, and Boston, MA is the endpoint. Weather data from each of these locations was downloaded using a token from the NOAA website. Next the eBird data is plotted the proportion of the population that arrived and the predicted arrival time for each. Then another plot is created to illustrate how the Julian day changes over the years. This is then used to see the impact of climate on the arrival date. Weather data was then used to calculate wind direction and results were joined with the species data. The frollmean() function is then used to calculate the mean of the weather variables 5 and 10 days before the arrival day. Lastly, a Linear Mixed-effect Model was created using lme for both weather data sets (single-day and two-week average). An Anova test was run to find the best fit model, and model testing was done using the function dredge().
+The first step in completing our project was to select five different trans-Gulf migrant (TGM) bird species. These species should be from different families. We selected: Belted Kingfisher (*Megaceryle alcyon*), Eastern Phoebe (*Sayornis phoebe*), Philadelphia Vireo (*Vireo phildelphicus*), Swainson's Thrush (*Catharus ustulatus*), and Black-throated Blue Warbler (*Setophaga caerulescens*) and the Yellow-Throated Warbler (*Setophaga dominica*. Data would be sourced from human observations of these species in Massachusetts in the eBird database. Then, using a for loop that passes our species through occ_data(), we retrieved the data from the database. This information would allow us to find the Julian day for each species and see the effect of temperature and wind along the migration route to Massachusetts. Next three sample locations along the migration route are chosen: Mobile, AL, Charlotte, NC, and Boston, MA. Mobile, AL is on the Gulf, Charlotte, NC is roughly in the middle, and Boston, MA is the endpoint. Weather data from each of these locations was downloaded using a token from the NOAA website. Next the eBird data is plotted the proportion of the population that arrived and the predicted arrival time for each. Then another plot is created to illustrate how the Julian day changes over the years. This is then used to see the impact of climate on the arrival date. Weather data was then used to calculate wind direction and results were joined with the species data. The frollmean() function is then used to calculate the mean of the weather variables 5 and 10 days before the arrival day. Lastly, a Linear Mixed-effect Model was created using lme for both weather data sets (single-day and two-week average). An Anova test was run to find the best fit model, and model testing was done using the function dredge().
 
 ## Results
+```{r,"loading in libraries"}
+library(rgbif)
+library(tidyverse)
+library(MuMIn)
+library(rnoaa)
+library(data.table)
+library(ggmap)
+library(usmap)
+library(magick)
+library(cowplot)
+library(lme4) 
+library(car)
+library(knitr)
+```
+```{r,"getting specific bird data--did this already in Rscript",eval=FALSE}
+species <- c("Megaceryle alcyon","Sayornis phoebe","Vireo philadelphicus","Catharus ustulatus","Setophaga caerulescens","Setophaga dominica")
+
+y <- paste0("1990",",","2019")
+m <- paste0("3",",","6")
+dat.l <- list()
+for (i in species){
+  n.obs <- occ_data(scientificName = i,year = y,month = m,limit=0,country = "US",basisOfRecord = "HUMAN_OBSERVATION", stateProvince = "Massachusetts")$meta$count
+  print(n.obs)
+  dat.l[[paste0(i)]] <- occ_data(scientificName = i, year=y, month = m, limit = n.obs,country = "US",basisOfRecord = "HUMAN OBSERVATION",stateProvince = "Massachusetts")[[2]]
+}
+
+data = rbindlist(dat.l,fill = T)
+saveRDS(data,"massbird.data.RDS")
+```
+```{r,"making data table from data + general plot of how many species v. year",cache=TRUE}
+dat<- readRDS("massbird.data.RDS")
+dat%>%
+  group_by(year,species)%>%
+  summarise(count=sum(individualCount,na.rm = T))%>%
+  ggplot(aes(x=year,y=count,col=species))+geom_point()
+```
+After loading in the species occurrence data from GBIF, this graph displays a general overview of the quantity of data points we have. It shows the count many species occurrence recordings there were per year.  
+
+```{r,"loading in weather station data + making into table",cache=TRUE}
+options(noaakey="OOZIuxBSmRgSCBNQPuYyWVUZGaWoDIBo")
+
+sts <- c(
+  "GHCND:USW00013894", #Mobible, AL 2k away about 10 days away @200 km/day
+  "GHCND:USW00013881", #Charlotte, NC 1000 km away about 6 days away @200 km/day
+  "GHCND:USW00014739" #Boston
+)
+sta.d <- bind_rows( #bind the rows
+  lapply(sts,function(x) ncdc_stations(stationid = x)$data ) #use lapply to run through stations
+)%>%
+  mutate(usmap_transform(.,input_names = c("longitude","latitude"),output_names = c("longitude.1", "latitude.1")))%>% #join transformation of lat/long for projection with usmap
+  mutate(name=str_sub(name, -5,-4))%>%#simplify the name column, grab just the state
+  mutate(migr.day=c(10,5,0))%>% #so we can look at wind speed 0, 5 or 10 days before arrive in boston
+  separate(id,into = c("station.type","id"))%>%#need to cut station type out from station id number
+  print()
+```
+```{r,"graphing stations onto map"}
+plot_usmap(include = c(.northeast_region,.south_region,.east_north_central))+geom_point(data=sta.d,aes(x=longitude.1,y=latitude.1,col=name),size=5)+geom_label(data=sta.d,aes(x=longitude.1,y=latitude.1,col=name,label=name),size=5,nudge_x = 1e6*0.25)+theme(legend.position = "none")
+
+```
+This map is a graphical representation of the locations of the 3 stations we are collecting weather data out of. 
+
+```{r,"getting weather data from stations",cache=TRUE}
+weather.d <- meteo_pull_monitors(sta.d$id,date_min = "2000-01-01")
+```
+```{r,"all of the species arrival"}
+all.dat<- dat%>%
+  group_by(year)%>%
+  mutate(date=as.Date(paste0(year,"-",month,"-",day)),
+         j.day=julian(date,origin=as.Date(paste0(unique(year),"-01-01")))
+  )%>%
+  group_by(species,year,j.day,date)%>%
+  summarise(day.tot=sum(individualCount,na.rm=T))%>%
+  group_by(species,year)%>%
+  mutate(prop=cumsum(day.tot/sum(day.tot,na.rm = T)))%>%
+  filter(year>1999)
+all.dat%>%
+  ggplot(aes(j.day,prop,color=species))+geom_point()+facet_wrap(year~.)
+```
+This is a graphical representation of the arrival of each species over the span of 2000-2019. Below, we divided this arrival data by species and created logistic models to model each species' arrival data and estimate the arrival function. 
+
+```{r,"logistic modeling graphs for each species",fig.cap="Megaceryle alcyon",cache=TRUE}
+#Megaceryle alcyon - belted kingfisher
+mea.pred <- mea%>%
+  group_by(year)%>%
+  summarize(
+    pred=predict(nls(prop~SSlogis(j.day,Asym, xmid, scal)),newdata=data.frame(j.day=min(j.day):max(j.day))),#predict the logistic curve for each species
+    j.day=min(j.day):max(j.day),
+  )%>%
+  left_join(mea%>%dplyr::select(j.day,date)) ## add date back to tibble
+
+mea%>%
+  ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=mea.pred,aes(x=j.day,y=pred),col="steelblue",size=2)+facet_wrap(year~.)
+```
+
+```{r,"arrival graphs for each species",fig.cap="Sayornis phoebe",cache=TRUE}
+ep.pred <- ep%>%
+  group_by(year)%>%
+  summarize(
+    pred=predict(nls(prop~SSlogis(j.day,Asym, xmid, scal)),newdata=data.frame(j.day=min(j.day):max(j.day))),#predict the logistic curve for each species
+    j.day=min(j.day):max(j.day),
+  )%>%
+  left_join(ep%>%dplyr::select(j.day,date)) ## add date back to tibble
+
+ep%>%
+  ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=ep.pred,aes(x=j.day,y=pred),col="navajowhite4",size=2)+facet_wrap(year~.)
+```
+
+```{r,"arrival graphs for each species",fig.cap="Vireo philadelphicus",cache=TRUE}
+#Vireo philadelphicus - Philadelphia Virelo 
+pv.forlog <- pv %>%  filter(year==2001 | year == 2002 | year == 2005|year ==2007|year==2011|year==2017|year==2018|year==2019)
+pv.pred <- pv.forlog%>%
+  group_by(year)%>%
+  summarize(
+    pred=predict(nls(prop~SSlogis(j.day,Asym, xmid, scal)),newdata=data.frame(j.day=min(j.day):max(j.day))),#predict the logistic curve for each species
+    j.day=min(j.day):max(j.day),
+  )%>%
+  left_join(pv.forlog%>%dplyr::select(j.day,date)) ## add date back to tibble
+pv.forlog%>%
+  ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=pv.pred,aes(x=j.day,y=pred),col="yellow4",size=2)+facet_wrap(year~.)
+```
+Note -- there are fewer years than the other species for the Philadelphia Virelo. This is due to the fact that there were too few occurrence data points for the omitted years to base a logistic curve off of. This is prevalent in a few other species as well. 
+
+```{r,"arrival graphs for each species",fig.cap="Catharus ustulatus",cache=TRUE}
+st.pred <- st%>%
+  group_by(year)%>%
+  summarize(
+    pred=predict(nls(prop~SSlogis(j.day,Asym, xmid, scal)),newdata=data.frame(j.day=min(j.day):max(j.day))),#predict the logistic curve for each species
+    j.day=min(j.day):max(j.day),
+  )%>%
+  left_join(st%>%dplyr::select(j.day,date)) ## add date back to tibble
+st%>%
+  ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=st.pred,aes(x=j.day,y=pred),col="khaki4",size=2)+facet_wrap(year~.)
+```
+
+```{r,"arrival graphs for each species",fig.cap="Setophaga caerulescens",cache=TRUE}
+#Setophaga caerulescens - Black-throated Blue Warbler 
+btw.pred <- btw%>%
+  group_by(year)%>%
+  summarize(
+    pred=predict(nls(prop~SSlogis(j.day,Asym, xmid, scal)),newdata=data.frame(j.day=min(j.day):max(j.day))),#predict the logistic curve for each species
+    j.day=min(j.day):max(j.day),
+  )%>%
+  left_join(btw%>%dplyr::select(j.day,date)) ## add date back to tibble
+btw%>%
+  ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=btw.pred,aes(x=j.day,y=pred),col="royalblue3",size=2)+facet_wrap(year~.)
+```
+
+```{r,"arrival graphs for each species",fig.cap="Setophaga dominica",cache=TRUE}
+#Setophaga dominica - Yellow-throated  Warbler 
+yw.forlog <- yw%>%filter(year==2004 |year==2009 |year== 2011|year==2013| year==2014| year==2016| year==2017| year==2019)
+yw.pred <- yw.forlog%>%
+  group_by(year)%>%
+  summarize(
+    pred=predict(nls(prop~SSlogis(j.day,Asym, xmid, scal)),newdata=data.frame(j.day=min(j.day):max(j.day))),#predict the logistic curve for each species
+    j.day=min(j.day):max(j.day),
+  )%>%
+  left_join(yw.forlog%>%dplyr::select(j.day,date)) ## add date back to tibble
+yw.forlog%>%
+  ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=yw.pred,aes(x=j.day,y=pred),col="gold1",size=2)+facet_wrap(year~.)
+```
+
+From all of the species logistic models, it appears each species arrives at staggered points in the year. The next analysis will determine if these arrival dates fluctuate year to year, or if they are relatively consistent.
+
+```{r,"what day of the year .25 of the population arrives, varying by year, fig.cap="Megaceryle alcyon",cache=TRUE}
+#Megaceryle alcyon - belted kingfisher
+mea.arrive.date <-mea.pred%>%
+  group_by(year)%>%
+  filter(j.day==j.day[which.min(abs(pred-0.25))])
+
+mea.arrive.date%>%
+  ggplot(aes(year,j.day))+geom_point()
+```
+```{r,"what day of the year .25 of the population arrives, varying by year, fig.cap="Sayornis phoebe",cache=TRUE}
+#Sayornis phoebe - Eastern Phoebe
+ep.arrive.date <-ep.pred%>%
+  group_by(year)%>%
+  filter(j.day==j.day[which.min(abs(pred-0.25))])
+
+ep.arrive.date%>%
+  ggplot(aes(year,j.day))+geom_point()
+```
+```{r,"what day of the year .25 of the population arrives, varying by year, fig.cap="Vireo philadelphicus",cache=TRUE}
+#Vireo philadelphicus - Philadelphia Virelo 
+pv.arrive.date <-pv.pred%>%
+  group_by(year)%>%
+  filter(j.day==j.day[which.min(abs(pred-0.25))])
+
+pv.arrive.date%>%
+  ggplot(aes(year,j.day))+geom_point()
+```
+```{r,"what day of the year .25 of the population arrives, varying by year, fig.cap="Catharus ustulatus",cache=TRUE}
+#Catharus ustulatus - Swainson's Thrush 
+st.arrive.date <-st.pred%>%
+  group_by(year)%>%
+  filter(j.day==j.day[which.min(abs(pred-0.25))])
+
+st.arrive.date%>%
+  ggplot(aes(year,j.day))+geom_point()
+```
+```{r,"what day of the year .25 of the population arrives, varying by year, fig.cap="Setophaga caerulescens",cache=TRUE}
+#Setophaga caerulescens - Black-throated Blue Warbler 
+btw.arrive.date <-btw.pred%>%
+  group_by(year)%>%
+  filter(j.day==j.day[which.min(abs(pred-0.25))])
+
+btw.arrive.date%>%
+  ggplot(aes(year,j.day))+geom_point()
+```
+```{r,"what day of the year .25 of the population arrives, varying by year, fig.cap="Setophaga dominica",cache=TRUE}
+#Setophaga dominica - Yellow-throated  Warbler 
+yw.arrive.date <-yw.pred%>%
+  group_by(year)%>%
+  filter(j.day==j.day[which.min(abs(pred-0.25))])
+
+yw.arrive.date%>%
+  ggplot(aes(year,j.day))+geom_point()
+```
+
+These results seem to insinuate that there is relative inconsistency among arrival date from year to year, for each species. We will conduct further analysis with weather data from the migration path to see if weather has an effect on these species' arrival dates on an annual basis. 
+
+```{r,"making a tibble with weather data"}
+weather.d <- weather.d%>%
+  mutate(year=as.integer(str_sub(date,1,4)), #add year
+         date=as.Date(date))%>%
+  group_by(year)%>% #group by year so we can compute julian day
+  mutate(j.day=julian(date,origin=as.Date(paste0(unique(year),"-01-01"))), #add julian day
+         date2=date,
+         wdir.rad=(180-abs(wdf2-180))*pi/180, #radians so we can use a trig function to compute wind vector, scale degrees first to 180 scale to 2x pi and subtract from 180 (wind comes out of a direction)
+         wvec=cos(wdir.rad)*-1*awnd # we want a negative value for positive value for 2x pi
+  )%>% #store day in new column
+  dplyr::select(id,year,date2,j.day,tmin,tmax,wvec)%>% #select the rows we need
+  left_join(sta.d%>%select(id,name,migr.day))%>% #add the station id info (ie. name)
+  mutate(j.day=j.day+migr.day)#make j.day ahead of BOS according to the migration days away so we can join weather along path
+```
+```{r,"combining weather data and species arrival data"}
+#Megaceryle alcyon - belted kingfisher
+mea.arr.weath <- mea.arrive.date%>%
+  left_join(weather.d)%>%
+  left_join(mea%>%dplyr::select(year,date,j.day))
+
+#eastern phoebe 
+ep.arr.weath <- ep.arrive.date%>%
+  left_join(weather.d)%>%
+  left_join(ep%>%dplyr::select(year,date,j.day))
+
+#Vireo philadelphicus - Philadelphia Virelo 
+pv.arr.weath <- pv.arrive.date%>%
+  left_join(weather.d)%>%
+  left_join(pv%>%dplyr::select(year,date,j.day))
+
+#Catharus ustulatus - Swainson's Thrush 
+st.arr.weath <- st.arrive.date%>%
+  left_join(weather.d)%>%
+  left_join(st%>%dplyr::select(year,date,j.day))
+
+#Setophaga caerulescens - Black-throated Blue Warbler 
+btw.arr.weath <- btw.arrive.date%>%
+  left_join(weather.d)%>%
+  left_join(btw%>%dplyr::select(year,date,j.day))
+
+#Setophaga dominica - Yellow-throated  Warbler
+yw.arr.weath <- yw.arrive.date%>%
+  left_join(weather.d)%>%
+  left_join(yw%>%dplyr::select(year,date,j.day))
+```
+```{r,"finding mean of weather variables, over time span of migration through stations"}
+weather.wk <-weather.d %>% 
+  group_by(year,name) %>% 
+  mutate(wk.tmin = frollmean(tmin, n=14,align="right"),
+         wk.tmax = frollmean(tmax, n=14,align="right"),
+         wk.wvec = frollmean(wvec, n=14,align="right")
+  )%>%
+  dplyr::select(j.day,date2,name,wk.tmin,wk.tmax,wk.wvec)
+```
+```{r,"combining mean weather data with species arrival data"}
+mea.arr.weath2 <- mea.arrive.date%>%
+  left_join(weather.wk)
+ep.arr.weath2 <- ep.arrive.date%>%
+  left_join(weather.wk)
+pv.arr.weath2 <- pv.arrive.date%>%
+  left_join(weather.wk)
+st.arr.weath2 <- st.arrive.date%>%
+  left_join(weather.wk)
+btw.arr.weath2 <- btw.arrive.date%>%
+  left_join(weather.wk)
+yw.arr.weath2 <- yw.arrive.date%>%
+  left_join(weather.wk)
+```
+#Linear Models
+
+```{r,"linear models,non-averaged weather data", r message = FALSE}
+mea.lmer <- lmer(j.day~tmin*tmax*wvec+(1|name),mea.arr.weath,na.action = "na.fail")
+anova.mea <- Anova(mea.lmer)
+kable(anova.mea,label = "Belted Kingfisher")
+
+ep.lmer <- lmer(j.day~tmin*tmax*wvec+(1|name),ep.arr.weath,na.action = "na.fail")
+anova.ep <- Anova(ep.lmer)
+kable(anova.ep,label = "Eastern Phoebe")
+
+pv.lmer <- lmer(j.day~tmin*tmax*wvec+(1|name),pv.arr.weath,na.action = "na.fail")
+anova.pv <- Anova(pv.lmer)
+kable(anova.pv,label="Philadelphia Virelo")
+
+st.lmer <- lmer(j.day~tmin*tmax*wvec+(1|name),st.arr.weath,na.action = "na.fail")
+anova.st <- Anova(st.lmer)
+kable(anova.st,label="Swainson's Thrush")
+
+btw.lmer <- lmer(j.day~tmin*tmax*wvec+(1|name),btw.arr.weath,na.action = "na.fail")
+anova.btw <- Anova(btw.lmer)
+kable(anova.btw,label="Black Throated Blue Warbler")
+
+yw.lmer <- lmer(j.day~tmin*tmax*wvec+(1|name),yw.arr.weath,na.action = "na.fail")
+anova.yw <- Anova(yw.lmer)
+kable(anova.yw,label="Yellow-Throated Warbler")
+```
+
+Based off of the values the ANOVA test produces, using only single-day weather data at each location doesn’t reveal any significant relationships between weather and arrival day. The variables that are being assessed in this model are maximum temperature of the area (tmax), minimum temperature of the area (tmin), and then a wind vector value, calculated using average wind velocity in meters per second and the direction of the fastest 2-minute wind.  
+
+```{r,"linear models, mean-weather over 2 weeks", r message = FALSE}
+mea.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name),mea.arr.weath2,na.action = "na.fail")
+anova.mea2 <- Anova(mea.lmer2)
+kable(anova.mea2,label = "Belted Kingfisher")
+
+ep.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name),ep.arr.weath2,na.action = "na.fail")
+anova.ep2 <- Anova(ep.lmer2)
+kable(anova.ep2,label="Eastern Phoebe")
+
+pv.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name),pv.arr.weath2,na.action = "na.fail")
+anova.pv2 <- Anova(pv.lmer2)
+kable(anova.pv2,label="Philadelphia Virelo")
+
+st.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name),st.arr.weath2,na.action = "na.fail")
+anova.st2 <- Anova(st.lmer2)
+kable(anova.st2,label="Swainson's Thrush")
+
+btw.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name),btw.arr.weath2,na.action = "na.fail")
+anova.btw2 <- Anova(btw.lmer2)
+kable(anova.btw2,label="Black-Throated Blue Warbler")
+
+yw.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name),yw.arr.weath2,na.action = "na.fail")
+anova.yw2 <- Anova(yw.lmer2)
+kable(anova.yw2,label="Yellow-Throated Warbler")
+```
+
+In the second set of linear models, instead of using weather data from single-days in time, we calculated averages of the weather data variables over the span of 2 weeks, to account for any birds that don't all arrive / leave at the same time. With these weather means, there do appear to be significant fixed effects of weather, in many of the species -- all three of the variables seem to have an effect on the arrival date. 
+
+# Secondary Model with Single-Day Weather data variables
+```{r,"secondary models", r message = FALSE}
+mea.arr.aic1 <- dredge(mea.lmer,fixed = c("tmin","tmax","wvec"),)
+mea1.kb <- kable(mea.arr.aic1[1:4,],caption = "Fit values for nested models of the most complicated lme model for Belted Kingfisher")
+print(mea1.kb)
+ep.arr.aic1 <- dredge(ep.lmer,fixed = c("tmin","tmax","wvec"),)
+ep1.kb <- kable(ep.arr.aic1[1:4,],caption = "Fit values for nested models of the most complicated lme model for Eastern Phoebe")
+print(ep1.kb)
+
+pv.arr.aic1 <- dredge(pv.lmer,fixed = c("tmin","tmax","wvec"),)
+pv1.kb <- kable(pv.arr.aic1[1:4,],caption = "Fit values for nested models of the most complicated lme model for Philadelphia Virelo")
+print(pv1.kb)
+
+st.arr.aic1 <- dredge(st.lmer,fixed = c("tmin","tmax","wvec"),)
+st1.kb <- kable(st.arr.aic1[1:4,],caption = "Fit values for nested models of the most complicated lme model for Swainson's Thrush")
+print(st1.kb)
+
+btw.arr.aic1 <- dredge(btw.lmer,fixed = c("tmin","tmax","wvec"),)
+btw1.kb <- kable(btw.arr.aic1[1:4,],caption = "Fit values for nested models of the most complicated lme model for Black-Throated Blue Warbler")
+print(btw1.kb)
+
+yw.arr.aic1 <- dredge(yw.lmer,fixed = c("tmin","tmax","wvec"),)
+yw1.kb <- kable(yw.arr.aic1[1:4,],caption = "Fit values for nested models of the most complicated lme model for Yellow-Throated Warbler")
+print(yw1.kb)
+```
+
+We utilized a different model from the linear models above, getting rid of all but three weather variables (only kept tmin, tmax, and wvec). The data tables above indicate the best fitting models with the 3 weather variables as fixed effects. From these tables, we can surmise that the best fitting models, for each species, reflects all three variables have an effect on arrival date. 
+
+#Secondary Model with Average weather data variables  
+```{r,"secondary models",r message=FALSE}
+mea.arr.aic <- dredge(mea.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
+mea.kb <- kable(mea.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model for Belted Kingfisher")
+print(mea.kb)
+
+ep.arr.aic <- dredge(ep.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
+ep.kb <- kable(ep.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model for Eastern Phoebe")
+print(ep.kb)
+
+pv.arr.aic <- dredge(pv.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
+pv.kb <- kable(pv.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model for Philadelphia Virelo")
+print(pv.kb)
+
+st.arr.aic <- dredge(st.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
+st.kb <- kable(st.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model for Swainson's Thrush")
+print(st.kb)
+
+btw.arr.aic <- dredge(btw.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
+btw.kb <- kable(btw.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model for Black-Throated Blue Warbler")
+print(btw.kb)
+
+yw.arr.aic <- dredge(yw.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
+yw.kb <- kable(yw.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model for Yellow-Throated Warbler")
+print(yw.kb)
+```
+
+Similar to the secondary model utilizing single-day weather data variables, this model represents the best-fitting models using the 2-week average analysis weather variables. The data tables above indicate the best fitting models with the 3 weather variables as fixed effects. From these tables, we can surmise that the best fitting models, for each species, reflects all three variables have an effect on arrival date. 
+
 
 ## Discussion 
 
 ## Author Contributions 
 Michael Britt - Bibliography, Discussion
 Phoebe Chandler - Methods 
-Ellie Falanga - 
+Ellie Falanga - Results and Code
 Erin Kiley - Introduction
 ## References 
 
