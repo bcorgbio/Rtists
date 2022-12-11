@@ -35,6 +35,7 @@ library(car)
 library(knitr)
 ```
 ```{r,"getting specific bird data--did this already in Rscript",eval=FALSE}
+#I put this on eval=FALSE because I already loaded everything in an RScript and then saved it as RDS, so I've been using the RDS for this document and didn't want to have to reload all the data in. 
 species <- c("Megaceryle alcyon","Sayornis phoebe","Vireo philadelphicus","Catharus ustulatus","Setophaga caerulescens","Setophaga dominica")
 y <- paste0("1990",",","2019")
 m <- paste0("3",",","6")
@@ -102,7 +103,7 @@ all.dat%>%
 
 This is a graphical representation of the arrival of each species over the span of 2000-2019. Below, we divided this arrival data by species and created logistic models to model each species' arrival data and estimate the arrival function. 
 
-```{r,"logistic modeling graphs for each species",fig.cap="Belted Kingfisher",cache=TRUE}
+```{r, "modeling graphs for each species", fig.height=4, fig.width=4, cache=TRUE,fig.cap="Belted Kingfisher"}
 
 #Megaceryle alcyon - belted kingfisher
 mea<- dat%>%
@@ -128,7 +129,7 @@ mea%>%
   ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=mea.pred,aes(x=j.day,y=pred),col="steelblue",size=2)+facet_wrap(year~.)
 ```
 
-```{r,"log models",fig.cap="Eastern Phoebe",cache=TRUE}
+```{r,"species ep", fig.height=4, fig.width=4, cache=TRUE,fig.cap="Eastern Phoebe"}
 ep<- dat%>%
   filter(species=="Sayornis phoebe")%>%
   group_by(year)%>%
@@ -152,7 +153,7 @@ ep%>%
   ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=ep.pred,aes(x=j.day,y=pred),col="navajowhite4",size=2)+facet_wrap(year~.)
 ```
 
-```{r,"log models2",fig.cap="Philadelphia Virelo",cache=TRUE}
+```{r, "species PV", fig.height=4, fig.width=4, cache=TRUE,fig.cap="Philadelphia Virelo"}
 pv<- dat%>%
   filter(species=="Vireo philadelphicus")%>%
   group_by(year)%>%
@@ -180,7 +181,7 @@ pv.forlog%>%
 
 There are fewer years than the other species for the Philadelphia Virelo. This is due to the fact that there were too few occurrence data points for the omitted years to base a logistic curve off of. This is prevalent in a few other species as well. 
 
-```{r,"log model 3",fig.cap="Swainson's Thrush",cache=TRUE}
+```{r, "species st", fig.height=4, fig.width=4, cache=TRUE,fig.cap="Swainson's Thrush"}
 st <-  dat%>%
   filter(species=="Catharus ustulatus")%>%
   group_by(year)%>%
@@ -203,7 +204,7 @@ st%>%
   ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=st.pred,aes(x=j.day,y=pred),col="khaki4",size=2)+facet_wrap(year~.)
 ```
 
-```{r,"log model 4",fig.cap="Black-throated Blue Warbler",cache=TRUE}
+```{r, "speciesbtw", fig.height=4, fig.width=4, cache=TRUE,fig.cap="Black-throated Blue Warbler"}
 #Setophaga caerulescens - Black-throated Blue Warbler 
 btw <-  dat%>%
   filter(species=="Setophaga caerulescens")%>%
@@ -227,7 +228,7 @@ btw%>%
   ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=btw.pred,aes(x=j.day,y=pred),col="royalblue3",size=2)+facet_wrap(year~.)
 ```
 
-```{r,"log model 5",fig.cap="Yellow-Throated Warbler",cache=TRUE}
+```{r, "species yw", fig.height=4, fig.width=4, cache=TRUE,fig.cap="Yellow-Throated Warbler"}
 #Setophaga dominica - Yellow-throated  Warbler 
 yw <-  dat%>%
   filter(species=="Setophaga dominica")%>%
@@ -254,7 +255,7 @@ yw.forlog%>%
 
 From all of the species logistic models, it appears each species arrives at staggered points in the year. The next analysis will determine if these arrival dates fluctuate year to year, or if they are relatively consistent.
 
-```{r,"what day of the year .25 of the population arrives, varying by year", fig.cap="Belted Kingfisher",cache=TRUE}
+```{r fig.height=4, fig.width=4, cache=TRUE, "day of the year .25 of the population arrives, varying by year", fig.cap="Belted Kingfisher"}
 #Megaceryle alcyon - belted kingfisher
 mea.arrive.date <-mea.pred%>%
   group_by(year)%>%
@@ -263,7 +264,7 @@ mea.arrive.date <-mea.pred%>%
 mea.arrive.date%>%
   ggplot(aes(year,j.day))+geom_point()
 ```
-```{r,"what day of the year .25 of the population arrives, varying 1 ", fig.cap="Eastern Phoebe",cache=TRUE}
+```{r fig.height=4, fig.width=4, cache=TRUE, "day of the year .25 of the population arrives, varying 1 ", fig.cap="Eastern Phoebe"}
 #Sayornis phoebe - Eastern Phoebe
 ep.arrive.date <-ep.pred%>%
   group_by(year)%>%
@@ -272,7 +273,7 @@ ep.arrive.date <-ep.pred%>%
 ep.arrive.date%>%
   ggplot(aes(year,j.day))+geom_point()
 ```
-```{r,"what day of the year .25 of the population arrives, varyin 2", fig.cap="Philadelphia Virelo",cache=TRUE}
+```{r fig.height=4, fig.width=4, cache=TRUE, "day of the year .25 of the population arrives, varyin 2", fig.cap="Philadelphia Virelo"}
 #Vireo philadelphicus - Philadelphia Virelo 
 pv.arrive.date <-pv.pred%>%
   group_by(year)%>%
@@ -281,7 +282,7 @@ pv.arrive.date <-pv.pred%>%
 pv.arrive.date%>%
   ggplot(aes(year,j.day))+geom_point()
 ```
-```{r,"what day of the year .25 of the population arrives, varying by year3", fig.cap="Swainson's Thrush",cache=TRUE}
+```{r fig.height=4, fig.width=4, cache=TRUE, "day of the year .25 of the population arrives, varying by year3", fig.cap="Swainson's Thrush"}
 #Catharus ustulatus - Swainson's Thrush 
 st.arrive.date <-st.pred%>%
   group_by(year)%>%
@@ -290,7 +291,7 @@ st.arrive.date <-st.pred%>%
 st.arrive.date%>%
   ggplot(aes(year,j.day))+geom_point()
 ```
-```{r,"what day of the year .25 of the population arrives, varying by year4", fig.cap="Black-Throated Blue Warbler",cache=TRUE}
+```{r fig.height=4, fig.width=4, cache=TRUE, "day of the year .25 of the population arrives, varying by year4", fig.cap="Black-Throated Blue Warbler"}
 #Setophaga caerulescens - Black-throated Blue Warbler 
 btw.arrive.date <-btw.pred%>%
   group_by(year)%>%
@@ -299,7 +300,7 @@ btw.arrive.date <-btw.pred%>%
 btw.arrive.date%>%
   ggplot(aes(year,j.day))+geom_point()
 ```
-```{r,"what day of the year .25 of the population arrives, varying by year5", fig.cap="Yellow-Throated Warbler",cache=TRUE}
+```{r,fig.height=4, fig.width=4,"what day of the year .25 of the population arrives, varying by year5", fig.cap="Yellow-Throated Warbler",cache=TRUE}
 #Setophaga dominica - Yellow-throated  Warbler 
 yw.arrive.date <-yw.pred%>%
   group_by(year)%>%
@@ -309,7 +310,7 @@ yw.arrive.date%>%
   ggplot(aes(year,j.day))+geom_point()
 ```
 
-These results seem to insinuate that there is relative inconsistency among arrival date from year to year, for each species. We will conduct further analysis with weather data from the migration path to see if weather has an effect on these species' arrival dates on an annual basis. 
+These results insinuate that there is relative inconsistency among arrival date from year to year, for each species. We will conduct further analysis with weather data from the migration path to see if weather has an effect on these species' arrival dates on an annual basis. 
 
 ```{r,"making a tibble with weather data"}
 weather.d <- weather.d%>%
@@ -408,8 +409,7 @@ anova.yw <- Anova(yw.lmer)
 kable(anova.yw,caption="Yellow-Throated Warbler")
 ```
 
-Based off of the values the ANOVA test produces, using only single-day weather data at each location doesn’t reveal any significant relationships between weather and arrival day. The variables that are being assessed in this model are maximum temperature of the area (tmax), minimum temperature of the area (tmin), and then a wind vector value, calculated using average wind velocity in meters per second and the direction of the fastest 2-minute wind.  
-
+Due to the nature of our complex data set, we performed linear mixed-effect modeling, as there are some variables (such as the weather variables of temperature and the wind vector) that are fixed, meaning they contribute to the slope and intercept of model but don't change among all of the samples we have; i.e. the weather is the same for each bird species. There are random effect variables, like the location of the station and the species, which we also have to take into consideration when we create models to better understand trends in our data. The first linear model assessed used weather data from a single-day report from the weather station to assess the relationship of those fixed weather variables with the arrival date (j.day), with a random effect of the station location. The weather variables assessed are maximum temperature of the area (tmax), minimum temperature of the area (tmin), and then a wind vector value. We calculated using average wind velocity in meters per second and the direction of the fastest 2-minute wind.  We performed ANOVA tests to see how the linear model created fits the data. The ANOVA test results indicate using only single-day weather data at each location doesn’t reveal any significant relationships between weather and arrival day. 
 ```{r,"linear models, mean-weather  2 weeks"}
 mea.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name),mea.arr.weath2,na.action = "na.fail")
 anova.mea2 <- Anova(mea.lmer2)
@@ -436,7 +436,7 @@ anova.yw2 <- Anova(yw.lmer2)
 kable(anova.yw2,caption="Yellow-Throated Warbler")
 ```
 
-In the second set of linear models, instead of using weather data from single-days in time, we calculated averages of the weather data variables over the span of 2 weeks, to account for any birds that don't all arrive / leave at the same time. With these weather means, there do appear to be significant fixed effects of weather, in many of the species -- all three of the variables seem to have an effect on the arrival date. 
+In this second set of linear models, we had the same model (with fixed weather variable effects and random effect of station location), but instead of using weather data from single-days in time, we calculated averages of the weather data variables over the span of 2 weeks, to account for any birds that don't all arrive / leave at the same time. With these weather averages, there do appear to be significant fixed effects of weather, in many of the species -- all three of the variables seem to have a relationship with the arrival date per species. 
 
 ### Secondary Model with Single-Day Weather data variables
 ```{r,"secondary models"}
@@ -459,7 +459,7 @@ yw.arr.aic1 <- dredge(yw.lmer,fixed = c("tmin","tmax","wvec"),)
 kable(yw.arr.aic1[1:4,],caption = "Fit values for nested models of the most complicated lme model for Yellow-Throated Warbler")
 ```
 
-We utilized a different model from the linear models above, getting rid of all but three weather variables (only kept tmin, tmax, and wvec). The data tables above indicate the best fitting models with the 3 weather variables as fixed effects. From these tables, we can surmise that the best fitting models, for each species, reflects all three variables have an effect on arrival date. 
+We utilized another method to find a best fit model, where we used the dredge function to assess only the three weather variables: tmin, tmax, and wvec, and their varying combinations of interactions. The data tables above indicate the best fitting models with the 3 weather variables as fixed effects. From these tables, we can surmise that the best fitting models, for each species, contain all three variables to have an effect on arrival date. 
 
 ### Secondary Model with Average weather data variables 
 
@@ -483,7 +483,7 @@ yw.arr.aic <- dredge(yw.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
 kable(yw.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model for Yellow-Throated Warbler")
 ```
 
-Similar to the secondary model utilizing single-day weather data variables, this model represents the best-fitting models using the 2-week average analysis weather variables. The data tables above indicate the best fitting models with the 3 weather variables as fixed effects. From these tables, we can surmise that the best fitting models, for each species, reflects all three variables have an effect on arrival date. 
+Similar to the secondary model utilizing single-day weather data variables, this model represents the best-fitting models using the 2-week average analysis weather variables. The data tables above indicate the best fitting models with the 3 weather variables as fixed effects. From these tables, we can surmise that the best fitting models, for each species, reflect all three variables having an effect on arrival date. 
 
 ### Best fitting models
 
@@ -531,7 +531,44 @@ bestyw <- Anova(best.yw.lmer)
 kable(bestyw,caption="Yellow-Throated Warbler")
 ```
 
-These tables dispaly the ANOVA values for the best-fit models found using only the 3 weather variables as fixed effects. There appears to be some significance for these weather variables having a fixed effect on the arrival date of the species. 
+These tables dispaly the ANOVA values for the best-fit models found using only the 3 weather variables as fixed effects (secondary model). There appears to be some significance for these weather variables having a fixed effect on the arrival date of the species. 
+
+### Additional analysis: Looking at species as a random effect variable 
+
+There is a lot more analysis that could be conducted with this data set we have, but specifically, we thought it might be interesting to touch upon the effect that species has on arrival date. Similar to the method we conducted above per species, using all of the data, we created a model that used both location of station and species as random effects to assess the relationship between arrival date and weather variables. 
+
+```{r,"additional analysis",cache=TRUE}
+#establishing arrival date for estimate of all species logistic model 
+all.dat.pred <- all.dat%>%
+  group_by(year)%>%
+  summarize(
+    pred=predict(nls(prop~SSlogis(j.day,Asym, xmid, scal)),newdata=data.frame(j.day=min(j.day):max(j.day))),#predict the logistic curve for each species
+    j.day=min(j.day):max(j.day),
+  )%>%
+  left_join(all.dat%>%dplyr::select(j.day,date)) ## add date back to tibble
+alldat.arrive.date <-all.dat.pred%>%
+  group_by(year)%>%
+  filter(j.day==j.day[which.min(abs(pred-0.25))])
+#combining with weater means (staggered bc they're all coming at different times)
+alldat.arr.weath <- alldat.arrive.date%>%
+  left_join(weather.d)%>%
+  left_join(all.dat%>%dplyr::select(year,date,j.day))
+alldat.arr.weath2 <- alldat.arrive.date%>%
+  left_join(weather.wk)
+#linear model 1 
+alldat.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name)+(1|species),alldat.arr.weath2,na.action = "na.fail")
+anova.all <- Anova(alldat.lmer2)
+kable(anova.all,caption="ANOVA values for linear model of all 6 species")
+#secondary model 
+alldat.arr.aic <- dredge(alldat.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
+kable(pv.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model for all species")
+#all data best model 
+best.alldat.lmer <-  lmer(j.day~wk.tmin+wk.tmax+wk.wvec+(1|name)+(1|species),alldat.arr.weath2,na.action = "na.fail")
+anova.bestmodel <- Anova(best.alldat.lmer)
+kable(anova.bestmodel,caption = "ANOVA values for best fit linear model of all species")
+```
+
+The significant values in the ANOVA table for the various linear models indicate that there most likely exists a relationship between the weather and arrival date of all species -- even with the random effects of location and species.  
 
 
 ## Discussion 
@@ -541,5 +578,6 @@ Michael Britt - Bibliography, Discussion
 Phoebe Chandler - Methods 
 Ellie Falanga - Results and Code
 Erin Kiley - Introduction
+
 ## References 
 
