@@ -17,7 +17,7 @@ In 2002, the Cornell Laboratory of Ornithology and the National Audubon Society 
 We downloaded eBird’s species occurrence data from the Global Biodiversity Information Facility with an R package, rgif, that allows us to access the application programming interface. We also used an R package, rnoa, to interact with NOAA’s National Climate Data Center’s application programming interface in order to compile meteorological data. We used this eBird and meteorological data to study the effects of local weather conditions on the arrival times of TGMs in Massachusetts. We were investigating if local weather conditions that are related to climate change are impacting TGM arrival times, which has implications for fitness changes and species conservation.
 
 ## Methods
-The first step in completing our project was to select five different trans-Gulf migrant (TGM) bird species. These species should be from different families. We selected: Belted Kingfisher (*Megaceryle alcyon*), Eastern Phoebe (*Sayornis phoebe*), Philadelphia Vireo (*Vireo phildelphicus*), Swainson's Thrush (*Catharus ustulatus*), and Black-throated Blue Warbler (*Setophaga caerulescens*) and the Yellow-Throated Warbler (*Setophaga dominica*. Data would be sourced from human observations of these species in Massachusetts in the eBird database. Then, using a for loop that passes our species through occ_data(), we retrieved the data from the database. This information would allow us to find the Julian day for each species and see the effect of temperature and wind along the migration route to Massachusetts. Next three sample locations along the migration route are chosen: Mobile, AL, Charlotte, NC, and Boston, MA. Mobile, AL is on the Gulf, Charlotte, NC is roughly in the middle, and Boston, MA is the endpoint. Weather data from each of these locations was downloaded using a token from the NOAA website. Next the eBird data is plotted the proportion of the population that arrived and the predicted arrival time for each. Then another plot is created to illustrate how the Julian day changes over the years. This is then used to see the impact of climate on the arrival date. Weather data was then used to calculate wind direction and results were joined with the species data. The frollmean() function is then used to calculate the mean of the weather variables 5 and 10 days before the arrival day. Lastly, a Linear Mixed-effect Model was created using lme for both weather data sets (single-day and two-week average). An Anova test was run to find the best fit model, and model testing was done using the function dredge().
+The first step in completing our project was to select five different trans-Gulf migrant (TGM) bird species. These species should be from different families. We selected: Belted Kingfisher (*Megaceryle alcyon*), Eastern Phoebe (*Sayornis phoebe*), Philadelphia Vireo (*Vireo phildelphicus*), Swainson's Thrush (*Catharus ustulatus*), Black-Throated Blue Warbler (*Setophaga caerulescens*) and Yellow-Throated Warbler (*Setophaga dominica*). Data would be sourced from human observations of these species in Massachusetts in the eBird database. Then, using a for loop that passes our species through occ_data(), we retrieved the data from the database. This information would allow us to find the Julian day for each species and see the effect of temperature and wind along the migration route to Massachusetts. Next three sample locations along the migration route are chosen: Mobile, AL, Charlotte, NC, and Boston, MA. Mobile, AL is on the Gulf, Charlotte, NC is roughly in the middle, and Boston, MA is the endpoint. Weather data from each of these locations was downloaded using a token from the NOAA website. Next the eBird data is plotted the proportion of the population that arrived and the predicted arrival time for each. Then another plot is created to illustrate how the Julian day changes over the years. This is then used to see the impact of climate on the arrival date. Weather data was then used to calculate wind direction and results were joined with the species data. The frollmean() function is then used to calculate the mean of the weather variables 5 and 10 days before the arrival day. Lastly, a Linear Mixed-effect Model was created using lme for both weather data sets (single-day and two-week average). An Anova test was run to find the best fit model, and model testing was done using the function dredge().
 
 ## Results
 ```{r,"loading in libraries"}
@@ -153,7 +153,7 @@ ep%>%
   ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=ep.pred,aes(x=j.day,y=pred),col="navajowhite4",size=2)+facet_wrap(year~.)
 ```
 
-```{r, "species PV", fig.height=4, fig.width=4, cache=TRUE,fig.cap="Philadelphia Virelo"}
+```{r, "species PV", fig.height=4, fig.width=4, cache=TRUE,fig.cap="Philadelphia Vireo"}
 pv<- dat%>%
   filter(species=="Vireo philadelphicus")%>%
   group_by(year)%>%
@@ -166,7 +166,7 @@ pv<- dat%>%
   mutate(prop=cumsum(day.tot/sum(day.tot,na.rm = T)))%>%
   filter(year>1999)
 
-#Vireo philadelphicus - Philadelphia Virelo 
+#Vireo philadelphicus - Philadelphia Vireo 
 pv.forlog <- pv %>%  filter(year==2001 | year == 2002 | year == 2005|year ==2007|year==2011|year==2017|year==2018|year==2019)
 pv.pred <- pv.forlog%>%
   group_by(year)%>%
@@ -179,7 +179,7 @@ pv.forlog%>%
   ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=pv.pred,aes(x=j.day,y=pred),col="yellow4",size=2)+facet_wrap(year~.)
 ```
 
-There are fewer years than the other species for the Philadelphia Virelo. This is due to the fact that there were too few occurrence data points for the omitted years to base a logistic curve off of. This is prevalent in a few other species as well. 
+There are fewer years than the other species for the Philadelphia Vireo. This is due to the fact that there were too few occurrence data points for the omitted years to base a logistic curve off of. This is prevalent in a few other species as well. 
 
 ```{r, "species st", fig.height=4, fig.width=4, cache=TRUE,fig.cap="Swainson's Thrush"}
 st <-  dat%>%
@@ -204,7 +204,7 @@ st%>%
   ggplot(aes(j.day,prop))+geom_point(aes=0.3)+geom_line(data=st.pred,aes(x=j.day,y=pred),col="khaki4",size=2)+facet_wrap(year~.)
 ```
 
-```{r, "speciesbtw", fig.height=4, fig.width=4, cache=TRUE,fig.cap="Black-throated Blue Warbler"}
+```{r, "speciesbtw", fig.height=4, fig.width=4, cache=TRUE,fig.cap="Black-Throated Blue Warbler"}
 #Setophaga caerulescens - Black-throated Blue Warbler 
 btw <-  dat%>%
   filter(species=="Setophaga caerulescens")%>%
@@ -273,8 +273,8 @@ ep.arrive.date <-ep.pred%>%
 ep.arrive.date%>%
   ggplot(aes(year,j.day))+geom_point()
 ```
-```{r fig.height=4, fig.width=4, cache=TRUE, "day of the year .25 of the population arrives, varyin 2", fig.cap="Philadelphia Virelo"}
-#Vireo philadelphicus - Philadelphia Virelo 
+```{r fig.height=4, fig.width=4, cache=TRUE, "day of the year .25 of the population arrives, varyin 2", fig.cap="Philadelphia Vireo"}
+#Vireo philadelphicus - Philadelphia Vireo 
 pv.arrive.date <-pv.pred%>%
   group_by(year)%>%
   filter(j.day==j.day[which.min(abs(pred-0.25))])
@@ -337,7 +337,7 @@ ep.arr.weath <- ep.arrive.date%>%
   left_join(weather.d)%>%
   left_join(ep%>%dplyr::select(year,date,j.day))
 
-#Vireo philadelphicus - Philadelphia Virelo 
+#Vireo philadelphicus - Philadelphia Vireo 
 pv.arr.weath <- pv.arrive.date%>%
   left_join(weather.d)%>%
   left_join(pv%>%dplyr::select(year,date,j.day))
@@ -394,7 +394,7 @@ kable(anova.ep,caption = "Eastern Phoebe")
 
 pv.lmer <- lmer(j.day~tmin*tmax*wvec+(1|name),pv.arr.weath,na.action = "na.fail")
 anova.pv <- Anova(pv.lmer)
-kable(anova.pv,caption="Philadelphia Virelo")
+kable(anova.pv,caption="Philadelphia Vireo")
 
 st.lmer <- lmer(j.day~tmin*tmax*wvec+(1|name),st.arr.weath,na.action = "na.fail")
 anova.st <- Anova(st.lmer)
@@ -409,7 +409,7 @@ anova.yw <- Anova(yw.lmer)
 kable(anova.yw,caption="Yellow-Throated Warbler")
 ```
 
-Due to the nature of our complex data set, we performed linear mixed-effect modeling, as there are some variables (such as the weather variables of temperature and the wind vector) that are fixed, meaning they contribute to the slope and intercept of model but don't change among all of the samples we have; i.e. the weather is the same for each bird species. There are random effect variables, like the location of the station and the species, which we also have to take into consideration when we create models to better understand trends in our data. The first linear model assessed used weather data from a single-day report from the weather station to assess the relationship of those fixed weather variables with the arrival date (j.day), with a random effect of the station location. The weather variables assessed are maximum temperature of the area (tmax), minimum temperature of the area (tmin), and then a wind vector value. We calculated using average wind velocity in meters per second and the direction of the fastest 2-minute wind.  We performed ANOVA tests to see how the linear model created fits the data. The ANOVA test results indicate using only single-day weather data at each location doesn’t reveal any significant relationships between weather and arrival day. 
+Due to the nature of our complex data set, we performed linear mixed-effect modeling, as there are some variables (such as the weather variables of temperature and the wind vector) that are fixed, meaning they contribute to the slope and intercept of model but do not change among all of the samples we have; i.e. the weather is the same for each bird species. There are random effect variables, like the location of the station and the species, which we also have to take into consideration when we create models to better understand trends in our data. The first linear model assessed used weather data from a single-day report from the weather station to assess the relationship of those fixed weather variables with the arrival date (j.day), with a random effect of the station location. The weather variables assessed are maximum temperature of the area (tmax), minimum temperature of the area (tmin), and then a wind vector value. We calculated using average wind velocity in meters per second and the direction of the fastest 2-minute wind.  We performed ANOVA tests to see how the linear model created fits the data. The ANOVA test results indicate using only single-day weather data at each location doesn’t reveal any significant relationships between weather and arrival day. 
 ```{r,"linear models, mean-weather  2 weeks"}
 mea.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name),mea.arr.weath2,na.action = "na.fail")
 anova.mea2 <- Anova(mea.lmer2)
@@ -421,7 +421,7 @@ kable(anova.ep2,caption="Eastern Phoebe")
 
 pv.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name),pv.arr.weath2,na.action = "na.fail")
 anova.pv2 <- Anova(pv.lmer2)
-kable(anova.pv2,caption="Philadelphia Virelo")
+kable(anova.pv2,caption="Philadelphia Vireo")
 
 st.lmer2 <- lmer(j.day~wk.tmin*wk.tmax*wk.wvec+(1|name),st.arr.weath2,na.action = "na.fail")
 anova.st2 <- Anova(st.lmer2)
@@ -436,7 +436,7 @@ anova.yw2 <- Anova(yw.lmer2)
 kable(anova.yw2,caption="Yellow-Throated Warbler")
 ```
 
-In this second set of linear models, we had the same model (with fixed weather variable effects and random effect of station location), but instead of using weather data from single-days in time, we calculated averages of the weather data variables over the span of 2 weeks, to account for any birds that don't all arrive / leave at the same time. With these weather averages, there do appear to be significant fixed effects of weather, in many of the species -- all three of the variables seem to have a relationship with the arrival date per species. 
+In this second set of linear models, we had the same model (with fixed weather variable effects and random effect of station location), but instead of using weather data from single-days in time, we calculated averages of the weather data variables over the span of 2 weeks, to account for any birds that do not all arrive / leave at the same time. With these weather averages, there do appear to be significant fixed effects of weather, in many of the species -- all three of the variables seem to have a relationship with the arrival date per species. 
 
 ### Secondary Model with Single-Day Weather data variables
 ```{r,"secondary models"}
@@ -447,7 +447,7 @@ ep.arr.aic1 <- dredge(ep.lmer,fixed = c("tmin","tmax","wvec"),)
 kable(ep.arr.aic1[1:4,],caption = "Fit values for nested models of the most complicated lme model for Eastern Phoebe")
 
 pv.arr.aic1 <- dredge(pv.lmer,fixed = c("tmin","tmax","wvec"),)
-kable(pv.arr.aic1[1:4,],caption = "Fit values for nested models of the most complicated lme model for Philadelphia Virelo")
+kable(pv.arr.aic1[1:4,],caption = "Fit values for nested models of the most complicated lme model for Philadelphia Vireo")
 
 st.arr.aic1 <- dredge(st.lmer,fixed = c("tmin","tmax","wvec"),)
 kable(st.arr.aic1[1:4,],caption = "Fit values for nested models of the most complicated lme model for Swainson's Thrush")
@@ -471,7 +471,7 @@ ep.arr.aic <- dredge(ep.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
 kable(ep.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model for Eastern Phoebe")
 
 pv.arr.aic <- dredge(pv.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
-kable(pv.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model for Philadelphia Virelo")
+kable(pv.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model for Philadelphia Vireo")
 
 st.arr.aic <- dredge(st.lmer2,fixed = c("wk.tmin","wk.tmax","wk.wvec"),)
 kable(st.arr.aic[1:4,],caption = "Fit values for nested models of the most complicated lme model for Swainson's Thrush")
@@ -497,7 +497,7 @@ bestep1 <- Anova(best.ep.lmer1)
 kable(bestep1,caption="Eastern Phoebe")
 best.pv.lmer1 <-  lmer(j.day~tmin+tmax+wvec+(1|name),pv.arr.weath,na.action = "na.fail")
 bestpv1 <- Anova(best.pv.lmer1)
-kable(bestpv1,caption="Philadelphia Virelo")
+kable(bestpv1,caption="Philadelphia Vireo")
 best.st.lmer1 <-  lmer(j.day~tmin+tmax+wvec+(1|name),st.arr.weath,na.action = "na.fail")
 bestst1 <- Anova(best.st.lmer1)
 kable(bestst1,caption="Swainson's Thrush")
@@ -519,7 +519,7 @@ bestep <- Anova(best.ep.lmer)
 kable(bestep,caption="Eastern Phoebe")
 best.pv.lmer <-  lmer(j.day~wk.tmin+wk.tmax+wk.wvec+(1|name),pv.arr.weath2,na.action = "na.fail")
 bestpv <- Anova(best.pv.lmer)
-kable(bestpv,caption="Philadelphia Virelo")
+kable(bestpv,caption="Philadelphia Vireo")
 best.st.lmer <-  lmer(j.day~wk.tmin+wk.tmax+wk.wvec+(1|name),st.arr.weath2,na.action = "na.fail")
 bestst <- Anova(best.st.lmer)
 kable(bestst,caption="Swainson's Thrush")
@@ -573,10 +573,15 @@ The significant values in the ANOVA table for the various linear models indicate
 
 ## Discussion 
 
+Following analysis, it is possible to assess how arrival time of six trans-Gulf migrant (TGMs) species (Belted Kingfisher, Eastern Phoebe, Philadelphia Vireo, Swainson's Thrush, Black-Throated Blue Warbler, and Yellow-Throated Warbler) is affected by meteorological conditions, such as temperature and wind and how this variation in arrival time may affect population status. Since variation of arrival time can impact mating success, available food supply, and more, this topic is pertinent to the survival of trans-Gulf migrants as climate change further disrupts typical weather patterns. As demonstrated in our results, for all species studied, there are inconsistencies in the arrival dates of TGMs between 2000 and 2019. In the linear models that analyzed the averages of the weather data over the course of two weeks, there are significant effects of weather, in all three variables of minimum temperature, maximum temperature, and wind velocity, on arrival day of the chosen TGMs. The models of best fit for each species analyzed contain all three of these weather variables as having an effect on arrival date. Overall, this analysis demonstrated that weather conditions do have an effect on Julian day of various TGMs. However, we have yet to fully establish in which direction population status is affected by meteorological conditions. In relation to previous literature, our results confirm the general consensus. @schaub2004departure studied the departure of migrating European robins and how it was affected by rain and wind velocity. Despite the difference in species and location between our analysis and this study, similar conclusions were drawn. There was clear evidence that wind velocity had an effect on arrival times, and subsequently departure times, of the European robins. Rain also significantly affected migration both spatially and temporally. However, @schaub2004departure also emphasizes that it is not always clear in what direction these meteorological factors will impact migration patterns and arrival days. In terms of temperature, @hurlbert2012spatiotemporal utilized citizen science data from eBird as well. In a similar vain to our results, they found that for all species in all geographic regions investigated, arrival date shifted earlier 0.8-6 days for every one degree Celsius increase in temperature. As our results confirm the results of previous studies, the major takeaway is that there is a link between meteorological factors, like temperature and wind velocity, and the Julian day of TGMs. Migratory birds will likely suffer due to mating patterns and food availability being routed in weather patterns. However, this effect on population status is not well understood yet. Other rhythms of development rooted in migratory patterns are gonad growth and rapid fat accumulation, according to @hurlbert2012spatiotemporal, which has the potential to lead to grave physiological consequences as the severity of this issue increases. It is imperative that further studies continue to be undertaken to gain a more comprehensive understanding of how meteorological changes affect the arrival time of passerine birds along their migration route and what implications this has for population levels. 
+
 ## Author Contributions 
 Michael Britt - Bibliography, Discussion
-Phoebe Chandler - Methods 
+
+Phoebe Chandler - Methods
+
 Ellie Falanga - Results and Code
+
 Erin Kiley - Introduction
 
 ## References 
